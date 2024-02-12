@@ -1,29 +1,23 @@
-const { findUserInDB, UserSchema, UserModel } = require("./models");
-var mongoose = require("mongoose")
+const { findUserInDB, UserModel } = require("./models");
+const dotenv = require("dotenv")
 var express = require("express")
 var bcrypt = require("bcrypt");
-
-
+const jwt = require('jsonwebtoken');
+const ms = require('ms')
 const app = express()
 const PORT = 3000;
 const saltRounds = 10;
+const expiresIn = '15m'
+
 app.use(express.json())
+dotenv.config();
+process.env.SECRET_KEY;
 
-mongoose.connect("mongodb://localhost:27017/UsersData").then(() => {
-  console.log("Connection is successfull")
 
-}).catch((error) => {
-  console.log(error)
-})
+const generateAccessToken = (email) => {
+  return jwt.sign({ email }, process.env.SECRET_KEY, { expiresIn })
 
-const UserSchema = {
-  "email": String,
-  "username": String,
-  "password": String
 }
-
-
-const UserModel = mongoose.model("User", UserSchema)
 
 app.post("/user/registration", async (req, res) => {
   try {
@@ -53,12 +47,14 @@ app.post('/user/login', async (req, res) => {
 
   email = req.body.email;
   password = req.body.password;
-  emailInDb = findUserInDB(email)
+  emailInDb = await findUserInDB(email)
+  console.log(emailInDb)
 
   if (email == emailInDb.email) {
-    comparision = bcrypt.compare(password, emailInDb.password)
+    comparision = await bcrypt.compare(password, emailInDb.password)
     if (comparision) {
-      res.status(200).json({ message: "user logged in ", success: true })
+      accessToken = generateAccessToken(email)
+      res.status(200).json({ message: "user logged in ", success: true, access_token: accessToken })
     }
     else {
       res.status(401).json({ message: "invalid password", success: false })
